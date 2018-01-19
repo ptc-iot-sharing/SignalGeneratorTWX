@@ -15,6 +15,12 @@ In many apps you have to generate data that does not look completely random. Thi
     * `sampleTime`: in ms, how often should the signal change
 * If you want to update a property value based, using a timer, you can create a thing that inherits  `SignalGeneratorTemplate`, and call `getNextValue`. The same parameters as above apply.
 
+### Demo
+
+Take a look at `SignalGeneratorDemo`.
+
+![demo](https://i.imgur.com/WF8zlT9.png)
+
 ### How it works
 
 It uses a [Perlin Noise 1D](https://en.wikipedia.org/wiki/Perlin_noise) generator.
