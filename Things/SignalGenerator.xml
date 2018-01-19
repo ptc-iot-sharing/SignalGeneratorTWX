@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Entities>
+    <Things>
+        <Thing
+         description=""
+         documentationContent=""
+         effectiveThingPackage="ConfiguredThing"
+         enabled="true"
+         homeMashup=""
+         identifier=""
+         lastModifiedDate="2018-01-19T15:09:40.556+02:00"
+         name="SignalGenerator"
+         projectName="SignalGenerator"
+         published="false"
+         tags="Applications:SignalGenerator"
+         thingTemplate="GenericThing"
+         valueStream="">
+            <avatar></avatar>
+            <DesignTimePermissions>
+                <Create></Create>
+                <Read></Read>
+                <Update></Update>
+                <Delete></Delete>
+                <Metadata></Metadata>
+            </DesignTimePermissions>
+            <RunTimePermissions></RunTimePermissions>
+            <VisibilityPermissions>
+                <Visibility></Visibility>
+            </VisibilityPermissions>
+            <ConfigurationTables></ConfigurationTables>
+            <ThingShape>
+                <PropertyDefinitions></PropertyDefinitions>
+                <ServiceDefinitions>
+                    <ServiceDefinition
+                     aspect.isAsync="false"
+                     category=""
+                     description=""
+                     isAllowOverride="false"
+                     isLocalOnly="false"
+                     isOpen="false"
+                     isPrivate="false"
+                     name="getNoise">
+                        <ResultType
+                         aspect.dataShape="TimeSeriesDataShape"
+                         baseType="INFOTABLE"
+                         description=""
+                         name="result"
+                         ordinal="0"></ResultType>
+                        <ParameterDefinitions>
+                            <FieldDefinition
+                             aspect.defaultValue="0.0"
+                             baseType="NUMBER"
+                             description="If you want the signal to be continuously increasing or decreasing, and by how much. Basically, the gradient for the line"
+                             name="additiveGradient"
+                             ordinal="3"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="1.0"
+                             baseType="NUMBER"
+                             description="The amplitude of the signal"
+                             name="amplitude"
+                             ordinal="2"></FieldDefinition>
+                            <FieldDefinition
+                             baseType="DATETIME"
+                             description=""
+                             name="intervalEnd"
+                             ordinal="7"></FieldDefinition>
+                            <FieldDefinition
+                             baseType="DATETIME"
+                             description=""
+                             name="intervalStart"
+                             ordinal="6"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="0.0"
+                             baseType="NUMBER"
+                             description="The value the signal is offset by"
+                             name="offset"
+                             ordinal="4"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="1000"
+                             baseType="LONG"
+                             description="Time, in ms between two points"
+                             name="sampleTime"
+                             ordinal="5"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="0.05"
+                             baseType="NUMBER"
+                             description=""
+                             name="scale"
+                             ordinal="1"></FieldDefinition>
+                        </ParameterDefinitions>
+                    </ServiceDefinition>
+                </ServiceDefinitions>
+                <EventDefinitions></EventDefinitions>
+                <ServiceMappings></ServiceMappings>
+                <ServiceImplementations>
+                    <ServiceImplementation
+                     description=""
+                     handlerName="Script"
+                     name="getNoise">
+                        <ConfigurationTables>
+                            <ConfigurationTable
+                             description="Script"
+                             isMultiRow="false"
+                             name="Script"
+                             ordinal="0">
+                                <DataShape>
+                                    <FieldDefinitions>
+                                        <FieldDefinition
+                                         baseType="STRING"
+                                         description="code"
+                                         name="code"
+                                         ordinal="0"></FieldDefinition>
+                                    </FieldDefinitions>
+                                </DataShape>
+                                <Rows>
+                                    <Row>
+                                        <code>
+                                        <![CDATA[
+                                        if(sampleTime === 0) {
+                                            throw "Sample time is zero";
+                                        }
+                                        if(!intervalStart || !intervalEnd) {
+                                            // just give back 500 data points from now
+                                            intervalEnd = new Date();
+                                            intervalStart = new Date(intervalEnd.getTime() - 500 * sampleTime);
+                                        }
+                                        var Simple1DNoise = function() {
+                                            var MAX_VERTICES = 256;
+                                            var MAX_VERTICES_MASK = MAX_VERTICES -1;
+                                            var amplitude = 1;
+                                            var scale = 1;
+                                        
+                                            var r = [];
+                                        
+                                            for ( var i = 0; i < MAX_VERTICES; ++i ) {
+                                                r.push(Math.random());
+                                            }
+                                        
+                                            var getVal = function( x ){
+                                                var scaledX = x * scale;
+                                                var xFloor = Math.floor(scaledX);
+                                                var t = scaledX - xFloor;
+                                                var tRemapSmoothstep = t * t * ( 3 - 2 * t );
+                                        
+                                                /// Modulo using &
+                                                var xMin = xFloor & MAX_VERTICES_MASK;
+                                                var xMax = ( xMin + 1 ) & MAX_VERTICES_MASK;
+                                        
+                                                var y = lerp( r[ xMin ], r[ xMax ], tRemapSmoothstep );
+                                        
+                                                return y * amplitude;
+                                            };
+                                        
+                                            var lerp = function(a, b, t ) {
+                                                return a * ( 1 - t ) + b * t;
+                                            };
+                                        
+                                            return {
+                                                getVal: getVal,
+                                                setAmplitude: function(newAmplitude) {
+                                                    amplitude = newAmplitude;
+                                                },
+                                                setScale: function(newScale) {
+                                                    scale = newScale;
+                                                }
+                                            };
+                                        };
+                                        
+                                        var params = {
+                                            infoTableName : "InfoTable",
+                                            dataShapeName : "TimeSeriesDataShape"
+                                        };
+                                        
+                                        var result = Resources["InfoTableFunctions"].CreateInfoTableFromDataShape(params);
+                                        
+                                        var noise = new Simple1DNoise();
+                                        
+                                        noise.setScale(scale);
+                                        noise.setAmplitude(amplitude);
+                                        var startTime = intervalStart.getTime();
+                                        var endTime = intervalEnd.getTime();
+                                        for(var iterator = startTime, i=0; iterator < endTime; iterator+= sampleTime, i++) {
+                                            var newEntry = {
+                                                timestamp: new Date(new Date().getTime() - (1000-i) * 10000),
+                                                value: noise.getVal(i)  +i*scale*0.1*additiveGradient + offset
+                                            };
+                                            result.AddRow(newEntry);
+                                        }
+                                        ]]>
+                                        </code>
+                                    </Row>
+                                </Rows>
+                            </ConfigurationTable>
+                        </ConfigurationTables>
+                    </ServiceImplementation>
+                </ServiceImplementations>
+                <Subscriptions></Subscriptions>
+            </ThingShape>
+            <PropertyBindings></PropertyBindings>
+            <RemotePropertyBindings></RemotePropertyBindings>
+            <RemoteServiceBindings></RemoteServiceBindings>
+            <RemoteEventBindings></RemoteEventBindings>
+            <AlertConfigurations></AlertConfigurations>
+            <ImplementedShapes></ImplementedShapes>
+            <ThingProperties></ThingProperties>
+        </Thing>
+    </Things>
+</Entities>
