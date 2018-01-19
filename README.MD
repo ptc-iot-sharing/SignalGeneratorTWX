@@ -11,9 +11,9 @@ In many apps you have to generate data that does not look completely random. Thi
     * `amplitude`: how big is the dynamic part of the signal
     * `additiveGradient`: Gain, or by how much you want each point to grow
     * `offset`: offset the signal from 0 (smallest data point)
-    * `sampleTime`: 
-
-
+    * `intervalStart` and `intervalEnd`: the generated signal will sit between this two dates
+    * `sampleTime`: in ms, how often should the signal change
+* If you want to update a property value based, using a timer, you can create a thing that inherits  `SignalGeneratorTemplate`, and call `getNextValue`. The same parameters as above apply.
 
 ### How it works
 
