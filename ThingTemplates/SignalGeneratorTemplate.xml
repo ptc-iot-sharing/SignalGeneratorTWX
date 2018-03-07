@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Entities
+ build="b140"
+ majorVersion="8"
+ minorVersion="2"
+ modelPersistenceProviderPackage="H2PersistenceProviderPackage"
+ revision="1"
+ schemaVersion="1020"
+ universal="">
+    <ThingTemplates>
+        <ThingTemplate
+         baseThingTemplate="GenericThing"
+         description="Generates signals to be used in "
+         documentationContent=""
+         effectiveThingPackage="ConfiguredThing"
+         homeMashup=""
+         lastModifiedDate="2018-03-07T16:16:57.928+02:00"
+         name="SignalGeneratorTemplate"
+         projectName="SignalGenerator"
+         tags="Applications:SignalGenerator"
+         thingPackage=""
+         valueStream="">
+            <avatar></avatar>
+            <DesignTimePermissions>
+                <Create></Create>
+                <Read></Read>
+                <Update></Update>
+                <Delete></Delete>
+                <Metadata></Metadata>
+            </DesignTimePermissions>
+            <RunTimePermissions></RunTimePermissions>
+            <VisibilityPermissions>
+                <Visibility></Visibility>
+            </VisibilityPermissions>
+            <ConfigurationTables></ConfigurationTables>
+            <PropertyBindings></PropertyBindings>
+            <RemotePropertyBindings></RemotePropertyBindings>
+            <RemoteServiceBindings></RemoteServiceBindings>
+            <RemoteEventBindings></RemoteEventBindings>
+            <AlertConfigurations>
+                <AlertDefinitions
+                 name="currentX"></AlertDefinitions>
+                <AlertDefinitions
+                 name="points"></AlertDefinitions>
+            </AlertConfigurations>
+            <ThingShape>
+                <PropertyDefinitions>
+                    <PropertyDefinition
+                     aspect.cacheTime="0.0"
+                     aspect.dataChangeThreshold="0.0"
+                     aspect.dataChangeType="VALUE"
+                     aspect.isLogged="false"
+                     aspect.isPersistent="false"
+                     aspect.isReadOnly="false"
+                     baseType="LONG"
+                     category=""
+                     description=""
+                     isLocalOnly="false"
+                     name="currentX"
+                     ordinal="2"></PropertyDefinition>
+                    <PropertyDefinition
+                     aspect.cacheTime="0.0"
+                     aspect.dataChangeType="VALUE"
+                     aspect.isLogged="false"
+                     aspect.isPersistent="true"
+                     aspect.isReadOnly="false"
+                     baseType="JSON"
+                     category=""
+                     description=""
+                     isLocalOnly="false"
+                     name="points"
+                     ordinal="1"></PropertyDefinition>
+                </PropertyDefinitions>
+                <ServiceDefinitions>
+                    <ServiceDefinition
+                     aspect.isAsync="false"
+                     category=""
+                     description=""
+                     isAllowOverride="false"
+                     isLocalOnly="false"
+                     isOpen="false"
+                     isPrivate="false"
+                     name="getNextValue">
+                        <ResultType
+                         aspect.dataShape="TimeSeriesDataShape"
+                         baseType="NUMBER"
+                         description=""
+                         name="result"
+                         ordinal="0"></ResultType>
+                        <ParameterDefinitions>
+                            <FieldDefinition
+                             aspect.defaultValue="0.0"
+                             baseType="NUMBER"
+                             description="If you want the signal to be continuously increasing or decreasing, and by how much. Basically, the gradient for the line"
+                             name="additiveGradient"
+                             ordinal="3"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="1.0"
+                             baseType="NUMBER"
+                             description="The amplitude of the signal"
+                             name="amplitude"
+                             ordinal="2"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="0.0"
+                             baseType="NUMBER"
+                             description="The value the signal is offset by"
+                             name="offset"
+                             ordinal="4"></FieldDefinition>
+                            <FieldDefinition
+                             aspect.defaultValue="0.05"
+                             baseType="NUMBER"
+                             description=""
+                             name="scale"
+                             ordinal="1"></FieldDefinition>
+                        </ParameterDefinitions>
+                    </ServiceDefinition>
+                    <ServiceDefinition
+                     aspect.isAsync="false"
+                     category=""
+                     description=""
+                     isAllowOverride="false"
+                     isLocalOnly="false"
+                     isOpen="false"
+                     isPrivate="false"
+                     name="initialize">
+                        <ResultType
+                         baseType="NOTHING"
+                         description=""
+                         name="result"
+                         ordinal="0"></ResultType>
+                        <ParameterDefinitions></ParameterDefinitions>
+                    </ServiceDefinition>
+                </ServiceDefinitions>
+                <EventDefinitions></EventDefinitions>
+                <ServiceMappings></ServiceMappings>
+                <ServiceImplementations>
+                    <ServiceImplementation
+                     description=""
+                     handlerName="Script"
+                     name="getNextValue">
+                        <ConfigurationTables>
+                            <ConfigurationTable
+                             description="Script"
+                             isMultiRow="false"
+                             name="Script"
+                             ordinal="0">
+                                <DataShape>
+                                    <FieldDefinitions>
+                                        <FieldDefinition
+                                         baseType="STRING"
+                                         description="code"
+                                         name="code"
+                                         ordinal="0"></FieldDefinition>
+                                    </FieldDefinitions>
+                                </DataShape>
+                                <Rows>
+                                    <Row>
+                                        <code>
+                                        <![CDATA[
+                                        var MAX_VERTICES = 256;
+                                        var MAX_VERTICES_MASK = MAX_VERTICES -1;
+                                        
+                                        var r = me.points.array;
+                                        
+                                        var getVal = function( x ){
+                                            var scaledX = x * scale;
+                                            var xFloor = Math.floor(scaledX);
+                                            var t = scaledX - xFloor;
+                                            var tRemapSmoothstep = t * t * ( 3 - 2 * t );
+                                        
+                                            /// Modulo using &
+                                            var xMin = xFloor & MAX_VERTICES_MASK;
+                                            var xMax = ( xMin + 1 ) & MAX_VERTICES_MASK;
+                                        
+                                            var y = lerp( r[ xMin ], r[ xMax ], tRemapSmoothstep );
+                                        
+                                            return y * amplitude;
+                                        };
+                                        
+                                        var lerp = function(a, b, t ) {
+                                            return a * ( 1 - t ) + b * t;
+                                        };
+                                        
+                                        
+                                        var result = getVal(me.currentX)  +me.currentX*scale*0.1*additiveGradient + offset;
+                                        me.currentX++;
+                                        if(me.currentX > 9999) {
+                                          me.currentX = 0;   
+                                        }
+                                        ]]>
+                                        </code>
+                                    </Row>
+                                </Rows>
+                            </ConfigurationTable>
+                        </ConfigurationTables>
+                    </ServiceImplementation>
+                    <ServiceImplementation
+                     description=""
+                     handlerName="Script"
+                     name="initialize">
+                        <ConfigurationTables>
+                            <ConfigurationTable
+                             description="Script"
+                             isMultiRow="false"
+                             name="Script"
+                             ordinal="0">
+                                <DataShape>
+                                    <FieldDefinitions>
+                                        <FieldDefinition
+                                         baseType="STRING"
+                                         description="code"
+                                         name="code"
+                                         ordinal="0"></FieldDefinition>
+                                    </FieldDefinitions>
+                                </DataShape>
+                                <Rows>
+                                    <Row>
+                                        <code>
+                                        <![CDATA[
+                                        var MAX_VERTICES = 256;
+                                        
+                                        var r = [];
+                                        
+                                        for ( var i = 0; i < MAX_VERTICES; ++i ) {
+                                            r.push(Math.random());
+                                        }
+                                        me.points = r;
+                                        me.currentX = 0;
+                                        ]]>
+                                        </code>
+                                    </Row>
+                                </Rows>
+                            </ConfigurationTable>
+                        </ConfigurationTables>
+                    </ServiceImplementation>
+                </ServiceImplementations>
+                <Subscriptions>
+                    <Subscription
+                     enabled="true"
+                     eventName="ThingStart"
+                     source=""
+                     sourceProperty=""
+                     sourceType="Thing">
+                        <ServiceImplementation
+                         description=""
+                         handlerName="Script"
+                         name="Event.ThingStart">
+                            <ConfigurationTables>
+                                <ConfigurationTable
+                                 description=""
+                                 isMultiRow="false"
+                                 name="Script"
+                                 ordinal="0">
+                                    <DataShape>
+                                        <FieldDefinitions>
+                                            <FieldDefinition
+                                             baseType="STRING"
+                                             description="code"
+                                             name="code"
+                                             ordinal="0"></FieldDefinition>
+                                        </FieldDefinitions>
+                                    </DataShape>
+                                    <Rows>
+                                        <Row>
+                                            <code>
+                                            <![CDATA[
+                                            me.initialize();
+                                            ]]>
+                                            </code>
+                                        </Row>
+                                    </Rows>
+                                </ConfigurationTable>
+                            </ConfigurationTables>
+                        </ServiceImplementation>
+                    </Subscription>
+                </Subscriptions>
+            </ThingShape>
+            <ImplementedShapes></ImplementedShapes>
+            <SharedConfigurationTables></SharedConfigurationTables>
+            <InstanceDesignTimePermissions>
+                <Create></Create>
+                <Read></Read>
+                <Update></Update>
+                <Delete></Delete>
+                <Metadata></Metadata>
+            </InstanceDesignTimePermissions>
+            <InstanceRunTimePermissions></InstanceRunTimePermissions>
+            <InstanceVisibilityPermissions>
+                <Visibility></Visibility>
+            </InstanceVisibilityPermissions>
+        </ThingTemplate>
+    </ThingTemplates>
+</Entities>
